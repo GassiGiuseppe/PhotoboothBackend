@@ -1,40 +1,41 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from starlette import status
-from app.storage import get_storage_backend, StorageError
+# app/main.py
+import os
+from fastapi import FastAPI
 
-app = FastAPI(title="Upload Mock API", version="0.1.0")
+# include the photos router you just rewrote
+from app.routers.photos import router as photos_router
+from app.storage.local_ids_db.adapter import PhotoIndexAsync
 
-# Loosen CORS for quick testing; tighten later.
-#   app.add_middleware(
-#       CORSMiddleware,
-#       allow_origins=["*"],   # Allow requests from ANY origin (unsafe for prod)
-#       allow_methods=["*"],   # Allow all HTTP methods (GET, POST, etc.)
-#       allow_headers=["*"],   # Allow all request headers
-#   )
+app = FastAPI(title="Photo API", version="0.1.0")
 
-storage = get_storage_backend()
+# ---- optional CORS for local frontend testing (uncomment if needed) ----
+# from fastapi.middleware.cors import CORSMiddleware
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
+# include routes
+app.include_router(photos_router)
+
+# simple healthcheck
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
-@app.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_file(file: UploadFile = File(...)):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Filename is required")
-    try:
-        result = await storage.save(file)
-        return JSONResponse(
-            {
-                "message": "uploaded",
-                "filename": result["filename"],
-                "backend": result["backend"],
-                "url": result["url"],          # mock URL for local; real gs:// when using GCS
-                "id": result["id"],
-            },
-            status_code=201,
-        )
-    except StorageError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# ---- optional: tidy engine lifecycle (nice to have) ----
+# If you want to cleanly dispose the SQLAlchemy async engine on shutdown,
+# import the shared instance from the router OR create one here and pass it in.
+# Below we reference the same DATABASE_URL and create a tiny disposable handle.
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+_index_engine = None
+if DATABASE_URL:
+    _index_engine = PhotoIndexAsync(DATABASE_URL)  # a throwaway handle just to dispose engine
+
+@app.on_event("shutdown")
+async def shutdown():
+    if _index_engine:
+        await _index_engine.engine.dispose()
