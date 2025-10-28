@@ -1,14 +1,9 @@
-PRAGMA foreign_keys = ON;
-
--- Drop everything (clean start)
+-- Clean + recreate (dev-friendly; in prod you'd use migrations)
 DROP TABLE IF EXISTS photos;
 
--- Minimal index table for your API
+-- Monotonic sequence for "newest first" (no timestamps needed)
 CREATE TABLE photos (
-  id TEXT PRIMARY KEY,                 -- UUID (string)
-  original_filename TEXT NOT NULL,     -- client filename (for auditing)
-  created_at TEXT NOT NULL             -- ISO8601 UTC (string)
+  seq BIGSERIAL PRIMARY KEY,          -- insertion order (newest = highest)
+  uuid  TEXT NOT NULL UNIQUE,           -- your UUID
+  original_filename TEXT NOT NULL
 );
-
--- Fast paging by newest
-CREATE INDEX idx_photos_created_at ON photos (created_at DESC);
