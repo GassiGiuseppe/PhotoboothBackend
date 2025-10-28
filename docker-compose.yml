@@ -1,0 +1,27 @@
+services:
+  local_db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: photoindex
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data          # persist data
+      # here the sql schema
+      # :ro is just a cleaning thing it means read only since we dont want the script in the container to change it
+      - ./app/storage/local_ids_db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro 
+     
+    ports:
+      - "5432:5432"   # optional: remove if you don't need host access
+
+  backend:
+    build: .
+    environment:
+      # <dialect>+<driver>://<user>:<password>@<host>:<port>/<database>
+      DATABASE_URL: postgresql+asyncpg://app:secret@local_db:5432/photoindex
+    tmpfs:
+      - /data:size=64m
+    depends_on:
+      - local_db
+    ports:
+      - "8000:8000"
