@@ -1,10 +1,11 @@
 services:
   local_db:
     image: postgres:16
+    env_file: [.env]
     environment:
-      POSTGRES_DB: photoindex
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./pgdata:/var/lib/postgresql/data          # persist data
       # here the sql schema
@@ -16,10 +17,12 @@ services:
 
   backend:
     build: .
+    env_file: [.env]   
     environment:
       # <dialect>+<driver>://<user>:<password>@<host>:<port>/<database>
-      DATABASE_URL: postgresql+asyncpg://app:secret@local_db:5432/photoindex
+      DATABASE_URL: ${DATABASE_URL}
     tmpfs:
+      # it is used for the mockup local storage
       - /data:size=64m
     depends_on:
       - local_db
