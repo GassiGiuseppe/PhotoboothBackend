@@ -21,6 +21,11 @@ services:
     environment:
       # <dialect>+<driver>://<user>:<password>@<host>:<port>/<database>
       DATABASE_URL: ${DATABASE_URL}
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/gcp/key.json
+    volumes:
+    # to get the google cloud server credential
+    # map local file : into docker file : read only
+    - ./gcp/key.json:/var/secrets/gcp/key.json:ro
     tmpfs:
       # it is used for the mockup local storage
       - /data:size=64m
